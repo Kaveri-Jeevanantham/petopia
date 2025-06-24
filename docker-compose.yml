@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./petopia-ui
+      dockerfile: Dockerfile.frontend
+    container_name: petopia-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - petopia-network
+
+  backend:
+    build:
+      context: ./petopia-be
+      dockerfile: Dockerfile.backend
+    container_name: petopia-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_USER: ${DB_USER:-admin}
+      DB_PASSWORD: ${DB_PASSWORD:-P@ssw0rd}
+      DB_HOST: db
+      DB_NAME: ${DB_NAME:-petopia}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-*}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - petopia-network
+
+  db:
+    build:
+      context: ./petopia-be
+      dockerfile: Dockerfile.postgresql
+    container_name: petopia-postgres_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-P@ssw0rd}
+      POSTGRES_DB: ${DB_NAME:-petopia}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-petopia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - petopia-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: petopia-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - petopia-network
+
+networks:
+  petopia-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
