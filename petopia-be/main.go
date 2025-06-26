@@ -2,20 +2,15 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"petopia-be/controller"
+	"petopia-be/config"
 	"petopia-be/db"
+	"petopia-be/server"
 	"petopia-be/messaging/rabbitmq"
 	"petopia-be/seed"
 
-	"github.com/rs/cors"
-
-	"os"
 	_ "petopia-be/docs"
 
-	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // @title Petopia API
@@ -35,10 +30,12 @@ import (
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file")
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
 	}
+
+	// Load configuration
+	cfg := config.Load()
 
 	// Initialize RabbitMQ
 	if err := rabbitmq.InitRabbitMQ(); err != nil {
@@ -46,17 +43,15 @@ func main() {
 	}
 	defer rabbitmq.CloseConnection()
 
-	// Declare test queue
 	if err := rabbitmq.DeclareTestQueue(); err != nil {
 		log.Fatalf("Could not declare test queue: %v", err)
 	}
 
-	// Start test consumer
 	if err := rabbitmq.StartTestConsumer(); err != nil {
 		log.Fatalf("Could not start test consumer: %v", err)
 	}
 
-	// Initialize database connection
+	// Initialize database
 	database, err := db.Connect()
 	if err != nil {
 		log.Fatalf("Could not connect to the database: %v", err)
@@ -67,35 +62,6 @@ func main() {
 		log.Fatalf("Error seeding the database: %v", err)
 	}
 
-	controller.InitDB(database)
-
-	// Set up CORS
-	corsAllowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{corsAllowedOrigin},
-	})
-
-	// Set up router
-	router := mux.NewRouter()
-
-	// Health check endpoint
-	router.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "healthy"}`))
-	}).Methods("GET")
-
-	// Define routes
-	router.HandleFunc("/api/products", controller.CreateProduct).Methods("POST")
-	router.HandleFunc("/api/products", controller.ListProducts).Methods("GET")
-	router.HandleFunc("/api/products/{id:[0-9]+}", controller.UpdateProduct).Methods("PUT")
-	router.HandleFunc("/api/products/{id:[0-9]+}", controller.DeleteProduct).Methods("DELETE")
-
-	router.HandleFunc("/api/test/message", controller.SendTestMessage).Methods("POST")
-
-	// Swagger route
-	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-
-	// Start server with CORS
-	log.Fatal(http.ListenAndServe(":8080", c.Handler(router)))
-	// log.Fatal(http.ListenAndServe(":8080", router))
+	// Start server
+	log.Fatal(server.Start(cfg, database))
 }

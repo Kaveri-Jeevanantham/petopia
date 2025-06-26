@@ -64,6 +64,23 @@ services:
     networks:
       - petopia-network
 
+  mongodb:
+    image: mongo:latest
+    container_name: petopia-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_DB_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD:-P@ssw0rd}
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - petopia-network
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: petopia-rabbitmq
