@@ -6,7 +6,6 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"petopia-be/dao"
 )
 
 func Connect() (*gorm.DB, error) {
@@ -22,11 +21,11 @@ func Connect() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// Run migrations
-	err = db.AutoMigrate(&dao.Product{})
-	if err != nil {
-		return nil, err
-	}
+	// // Run migrations
+	// err = db.AutoMigrate(&dao.Product{})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	fmt.Println("Connected to PostgreSQL database using GORM and migrated the Product table!")
 	return db, nil

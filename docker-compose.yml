@@ -28,8 +28,14 @@ services:
       DB_HOST: db
       DB_NAME: ${DB_NAME:-petopia}
       CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-*}
+      DOCKER_ENV: "true"
+      MONGO_HOST: mongodb
+      MONGO_USERNAME: ${MONGO_DB_USERNAME:-admin}
+      MONGO_PASSWORD: ${MONGO_DB_PASSWORD:-P@ssw0rd}
     depends_on:
       db:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
@@ -73,7 +79,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_DB_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD:-P@ssw0rd}
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 5
